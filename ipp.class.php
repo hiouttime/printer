@@ -8,6 +8,7 @@ class IPPServer{
         ];
     private static $tags = [
         "\x44" => "keywords",
+        "\x45" => "printer-uri-supported",
         "\x47" => "charset",
         "\x48" => "natural-lang",
         ];
@@ -32,6 +33,9 @@ class IPPServer{
         "\x07" => "Send-URL",
         "\x3b" => "Close-Job",
         "\x3c" => "Identify-Printer",
+        ];
+    private static $types = [
+        "array" => "\x23" // IPP_TAG_ENUM
         ];
     public $request; // 请求内容
     public $version; // 协议版本号
@@ -70,7 +74,7 @@ class IPPServer{
             $opration = substr($opration,1,1);
         switch (self::$supported[$opration]) {
             case 'Get-Printer-Attributes':
-                $this->printerAttributes($this->attrs["keywords"]);
+                $this->printerAttributes($this->attrs["oprations_tag"]["keywords"]);
                 break;
             
             default:
@@ -79,7 +83,7 @@ class IPPServer{
         }
     }
     
-    public function printerAttributes(Array $keywords = []){
+    public function printerAttributes(Array $keywords){
         $data = [];
         foreach ($keywords as $v){
             $value = "";
@@ -91,14 +95,14 @@ class IPPServer{
                     break;
                 case 'printer-uri-supported':
                     $value = [
-                        "ipp://pay.timewk.cn/ipp/test"
+                        "ipp://ipp.statict.cn"
                         ];
                     break;
                 default:break;
             }
             $data[$v] = $value;
         }
-        
+        $this->output("ok",$this->arrayToBin("printer_tag",$data));
     }
     
     public function attrsToArray(){
@@ -140,30 +144,39 @@ class IPPServer{
         return $data;
     }
     
-    public function arrayToBin(Array $attrs){
-        $bin = "";
+    public function arrayToBin(String $tag, Array $attrs){
+        $bin = array_search($tag,self::$tag_group);
+        if(empty($bin))
+            return false;
+        $length = "";
         foreach ($attrs as $k => $v){
-            if(!is_array($v))
-                $v = [$v];
-            foreach ($v as $attr){
-                $tag = array_search($k,self::$tags);
-                if(!$tag){
-                    end(self::$tags);
-                    $tag = key(self::$tags);
-                    reset(self::$tags);
+            $tag = array_search($k,self::$tags);
+            if($tag)
+                $bin.=$tag;
+            else{
+                $tag = gettype($v);
+                if(isset(self::$types[$tag])){
+                    $tag = self::$types[$tag];
+                    $bin.=$tag;
                 }
-                $bin .= $tag;
-                $len = dechex(strlen(self::$tags[$tag]));
-                if(strlen($len) < 2)
-                    $len.="\x00";
-                $bin .= $len;
-                $bin .= bin2hex(self::$tags[$tag]);
-                
+            }
+            $length = pack("n",strlen($k));
+            if(strlen($length) < 2)
+                $length = "\x00".$length;
+            $bin .= $length.$k;
+            foreach ($v as $vk => $vv){// 集合
+                if($vk != 0)
+                    $bin .= $tag."\x00\x00";
+                $length = pack("n",strlen($vv));
+                if(strlen($length) < 2)
+                    $length = "\x00".$length;
+                $bin .= $vv;
             }
         }
+        return $bin;
     }
     
-    public function output(String $status){
+    public function output(String $status,String $bin_data){
         ob_start();
         $header = [
             "Transfer-Encoding" => "chunked",
@@ -181,16 +194,11 @@ class IPPServer{
         $pack = [
             $this->version,
             $status,
-            $this->request_id
+            $this->request_id,
+            $bin_data,
+            self::$define["tag-end"]
             ];
-        $tag_pack = [
-            $tag,
-            $tag_len, //2b
-            $tag_name,//ascii
-            $value_len,//2b
-            $value,//ascii
-            ];
-        echo "\x00\x01\x03";
+        echo implode("",$pack);
         ob_end_flush();
     }
 }
