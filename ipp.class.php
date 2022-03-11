@@ -48,11 +48,11 @@ class IPPServer{
         $this->request_id = substr($r, 4, 4);
         $this->attrs = false;
         if(isset(self::$tag_group[substr($r,8,1)])) // 存在操作标志
-            $this->attrs = strrpos($r,self::$define["tag-end"],8) - 8;
+            $this->attrs = strrpos($r,self::$define["tag-end"],8);
         else 
             $this->data = 8;
         if($this->attrs !== false){// 如果存在结尾则存储参数
-            $this->data = $this->attrs;
+            $this->data = $this->attrs + 1;
             $this->attrs = substr($r,8,$this->attrs);
             $this->attrs = $this->attrsToArray();
         }
@@ -94,7 +94,7 @@ class IPPServer{
                         "ipp://pay.timewk.cn/ipp/test"
                         ];
                     break;
-                default:continue;break;
+                default:break;
             }
             $data[$v] = $value;
         }
@@ -105,31 +105,36 @@ class IPPServer{
         if(is_array($this->attrs))
             return true;
         $attrs = substr($this->attrs, 0);
-        $tag = "";
+        $value = "";$tag = "";
         $data = [];
         $len = strlen($attrs);
-        for($pos = 0;$pos <= $len;$pos++){
+        for($pos = 0;$pos < $len;$pos++){
             if(substr($attrs, $pos, 1) == self::$define["tag-end"])
                 break; 
-            if(isset(self::$tag_group[substr($attrs,$pos,1)]))
-                $tag = self::$tag_group[substr($attrs,$pos,1)];
-            if(!isset(self::$tags[substr($attrs, $pos, 1)]))
-                continue;// 未识别的标签
-            $attr = self::$tags[substr($attrs, $pos, 1)];
-            $length = unpack("n",substr($attrs, $pos + 1, 2))[1];// 参数名长度
-            $pos = $pos + 3 + $length;// 跳过参数名
+            if(isset(self::$tag_group[substr($attrs, $pos, 1)]))
+                $tag = self::$tag_group[substr($attrs, $pos, 1)];
+            if(!isset($tag))
+                continue;
+            $attr = self::$tags[substr($attrs, $pos + 1, 1)];
+            if(empty($attr))// 跳过未做支持的标签
+                continue;
+            $length = unpack("n",substr($attrs, $pos + 2, 2))[1];// 参数名长度
+            $pos = $pos + 4 + $length;// 跳过参数名
             $length = unpack("n",substr($attrs,$pos,2))[1];// 参数值长度
-            $length = unpack("a*",substr($attrs,$pos + 2,$length))[1];//参数值
+            $value = unpack("a*",substr($attrs,$pos + 2,$length))[1];//参数值
+            $pos = $pos + $length;// 跳过参数
+            if(!is_array($data[$tag]))
+                $data[$tag] = [];
             if(isset($data[$tag][$attr])){
                 if(is_array($data[$tag][$attr]))
-                    $data[$tag][$attr][] = $length;
+                    $data[$tag][$attr][] = $value;
                 else
                     $data[$tag][$attr] = [
                     $data[$tag][$attr],
-                    $length
+                    $value
                     ];
             }else
-                $data[$tag][$attr] = $length;
+                $data[$tag][$attr] = $value;
                 
         }
         return $data;
