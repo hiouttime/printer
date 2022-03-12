@@ -164,13 +164,20 @@ class IPPServer{
             if(strlen($length) < 2)
                 $length = "\x00".$length;
             $bin .= $length.$k;
-            foreach ($v as $vk => $vv){// 集合
-                if($vk != 0)
-                    $bin .= $tag."\x00\x00";
-                $length = pack("n",strlen($vv));
+            if(is_array($v))// 集合
+                foreach ($v as $vk => $vv){
+                    if($vk != 0)
+                        $bin .= $tag."\x00\x00";
+                    $length = pack("n",strlen($vv));
+                    if(strlen($length) < 2)
+                        $length = "\x00".$length;
+                    $bin .= $length.$vv;
+                }
+            else{
+                $length = pack("n",strlen($v));
                 if(strlen($length) < 2)
                     $length = "\x00".$length;
-                $bin .= $vv;
+                $bin .= $length.$v;
             }
         }
         return $bin;
@@ -195,6 +202,10 @@ class IPPServer{
             $this->version,
             $status,
             $this->request_id,
+            $this->arrayToBin("oprations_tag",[
+                "charset" => "utf-8",
+                "natural-lang" => "zh-cn"
+                ]),
             $bin_data,
             self::$define["tag-end"]
             ];
