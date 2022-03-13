@@ -35,7 +35,13 @@ class IPPServer{
         "\x3c" => "Identify-Printer",
         ];
     private static $types = [
-        "array" => "\x23" // IPP_TAG_ENUM
+        "true" => "\x01",
+        "false" => "\x00",
+        "boolean" => "\x22",
+        "array" => "\x23", // IPP_TAG_ENUM
+        "text" => "\x41",
+        "name" => "\x42",
+        "url" => "\x45",
         ];
     public $request; // 请求内容
     public $version; // 协议版本号
@@ -98,7 +104,33 @@ class IPPServer{
                         "ipp://ipp.statict.cn"
                         ];
                     break;
-                default:break;
+                case 'uri-authentication-supported':
+                    $value = [
+                        "requesting-user-name"
+                        ];
+                    break;
+                case 'printer-location':
+                    $value = "地球";
+                    break;
+                case 'printer-more-info':
+                    $value = "https://baidu.com";
+                    break;
+                case 'printer-info':
+                    $value = "测试打印姬";
+                    break;
+                case 'printer-dns-sd-name';
+                    $value = "测试打印姬";
+                    break;
+                case 'printer-make-and-model':
+                    $value = "GuGuGu";
+                    break;
+                case 'printer-is-accepting-jobs':
+                    $value = true;
+                    break;
+                case 'printer-uuid':
+                    $value = "urn:uuid:daa7f557-bc16-fd42-8bde-21ca3984f6ad";
+                    break;
+                default:continue 2;break;
             }
             $data[$v] = $value;
         }
@@ -155,10 +187,20 @@ class IPPServer{
                 $bin.=$tag;
             else{
                 $tag = gettype($v);
+                switch($tag){
+                    case 'boolean':
+                        $v = $v?self::$types["true"]:self::$types["false"];
+                    break;
+                    case 'array': case 'object':break;
+                    default:
+                        $tag = $this->typeDetect($v);
+                        break;
+                }
                 if(isset(self::$types[$tag])){
                     $tag = self::$types[$tag];
                     $bin.=$tag;
-                }
+                }else
+                    continue;
             }
             $length = pack("n",strlen($k));
             if(strlen($length) < 2)
@@ -181,6 +223,14 @@ class IPPServer{
             }
         }
         return $bin;
+    }
+    
+    public function typeDetect($v){// 自定义类型判断
+        if(preg_match('/[a-zA-z]+:\/\/[^\s]*/', $v))
+            return "url";
+        if(preg_match('/\S+:\S+:\S+/', $v))
+            return "url";
+        return "text";
     }
     
     public function output(String $status,String $bin_data){
