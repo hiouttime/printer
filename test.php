@@ -1,6 +1,4 @@
 <?php
 include("ipp.class.php");
-
 $printer = new IPPServer;
-var_dump($printer->attrs);
-$printer->operate();
+$printer->operate();// 接收并处理操作

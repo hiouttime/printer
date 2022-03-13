@@ -30,6 +30,7 @@ class IPPServer{
         "\x06" => "Send-Document",
         "\x13" => "Set-Printer-Attributes",
         "\x03" => "Print-URL",
+        "\x06" => "Send-Document",
         "\x07" => "Send-URL",
         "\x3b" => "Close-Job",
         "\x3c" => "Identify-Printer",
@@ -82,10 +83,13 @@ class IPPServer{
             case 'Get-Printer-Attributes':
                 $this->printerAttributes($this->attrs["oprations_tag"]["keywords"]);
                 break;
-            
-            default:
-                // code...
+            case 'Vaildate-Job':
+                $this->output("ok");
                 break;
+            case 'Send-Document':
+                $this->saveDocument();
+                break;
+            default:break;
         }
     }
     
@@ -101,7 +105,7 @@ class IPPServer{
                     break;
                 case 'printer-uri-supported':
                     $value = [
-                        "ipp://ipp.statict.cn"
+                        "ipp://printer"
                         ];
                     break;
                 case 'uri-authentication-supported':
@@ -110,10 +114,10 @@ class IPPServer{
                         ];
                     break;
                 case 'printer-location':
-                    $value = "地球";
+                    $value = "中国";
                     break;
                 case 'printer-more-info':
-                    $value = "https://baidu.com";
+                    $value = "https://example.com";
                     break;
                 case 'printer-info':
                     $value = "测试打印姬";
@@ -233,7 +237,11 @@ class IPPServer{
         return "text";
     }
     
-    public function output(String $status,String $bin_data){
+    public function saveDocument(){
+        
+    }
+    
+    public function output(String $status,String $bin_data = ""){
         ob_start();
         $header = [
             "Transfer-Encoding" => "chunked",
